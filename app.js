@@ -4,7 +4,8 @@
 require("dotenv").config();
 const ejs = require("ejs");
 const mongoose = require("mongoose");
-const encrypt = require("mongoose-encryption");
+//const encrypt = require("mongoose-encryption");
+const md5 = require("md5");
 const express = require("express");
 const app = express();
 let PORT = 3000;
@@ -34,8 +35,11 @@ let userSchema = new mongoose.Schema({
 });
 
 
-//convenience long-string encryption; call plugin before compiling model; encrypts on save and decrypt on find
-userSchema.plugin(encrypt, { secret: process.env.SECRETSTRING, encryptedFields: ['password'] }); //still unsafe, plain in app.js
+//L1 & 2 : convenience long-string encryption; call plugin before compiling model; encrypts on save and decrypt on find
+//userSchema.plugin(encrypt, { secret: process.env.SECRETSTRING, encryptedFields: ['password'] }); //still unsafe, plain in app.js
+
+//L3 : hashing using md5
+
 
 let User = mongoose.model("User", userSchema);
 
@@ -71,7 +75,7 @@ app.get("/:id", function (req, res) {
 });
 app.post("/register", function (req, res) {
     user = req.body.username;
-    let password = req.body.password;
+    let password = md5(req.body.password);
     // check if username exist and get id; check if password exist in the username, if true return home page
     User.findOne({ email: user }, function (err, foundUser) {
         if (err) {
@@ -97,7 +101,7 @@ app.post("/register", function (req, res) {
 });
 app.post("/login", function (req, res) {
     user = req.body.username;
-    let password = req.body.password;
+    let password = md5(req.body.password);
     User.findOne({ email: user }, function (err, foundDoc) {
         if (err) {
             console.log(err)
