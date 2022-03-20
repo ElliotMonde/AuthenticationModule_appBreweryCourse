@@ -5,7 +5,9 @@ require("dotenv").config();
 const ejs = require("ejs");
 const mongoose = require("mongoose");
 //const encrypt = require("mongoose-encryption");
-const md5 = require("md5");
+//const md5 = require("md5");
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 const express = require("express");
 const app = express();
 let PORT = 3000;
@@ -75,24 +77,27 @@ app.get("/:id", function (req, res) {
 });
 app.post("/register", function (req, res) {
     user = req.body.username;
-    let password = md5(req.body.password);
+
     // check if username exist and get id; check if password exist in the username, if true return home page
     User.findOne({ email: user }, function (err, foundUser) {
         if (err) {
             console.log(err)
         } else {
             if (foundUser == null) {
-                let newUser = new User({
-                    email: user,
-                    password: password
+                bcrypt.hash(req.body.password, saltRounds, function (err, hash) {
+                    let newUser = new User({
+                        email: user,
+                        password: hash
+                    });
+                    newUser.save(function (err) {
+                        if (err) {
+                            console.log(err)
+                        } else {
+                            res.redirect("/secrets");
+                        }
+                    });
                 });
-                newUser.save(function (err) {
-                    if (err) {
-                        console.log(err)
-                    } else {
-                        res.redirect("/secrets");
-                    }
-                });
+
             } else {
                 res.render("register", { loginError: "visibility:visible;" });
             }
@@ -101,17 +106,24 @@ app.post("/register", function (req, res) {
 });
 app.post("/login", function (req, res) {
     user = req.body.username;
-    let password = md5(req.body.password);
+    let password = req.body.password;
     User.findOne({ email: user }, function (err, foundDoc) {
         if (err) {
             console.log(err)
         } else {
-            if (foundDoc != null && foundDoc.password == password) {
-                res.redirect("/secrets");
-            } else {
-                let loginError = "visibility: visible";
-                res.render("login", { loginError: loginError });
-            };
+            bcrypt.compare(password, foundDoc.password, function (err, result) {
+                if (err) {
+                    console.log(err);
+                }
+                if (foundDoc != null && result === true) {
+                    res.redirect("/secrets");
+                } else {
+                    let loginError = "visibility: visible";
+                    res.render("login", { loginError: loginError });
+                };
+                //hash comparison
+            });
+
         }
     })
 });
